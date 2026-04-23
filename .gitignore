@@ -1,0 +1,3 @@
+.tmp/ 
+crm-backend/leads_database.db 
+__pycache__/ 
