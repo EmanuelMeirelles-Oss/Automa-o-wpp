@@ -1,3 +1,14 @@
-.tmp/ 
-crm-backend/leads_database.db 
-__pycache__/ 
+.tmp/
+crm-backend/leads_database.db
+__pycache__/
+node_modules/
+.env
+
+# Ignorando as velharias da maquina para isolar o Repositorio na Nuvem apenas para o CRM de Contatos
+site/
+api/
+app_futebol/
+01dosanimes/
+*.zip
+logs/
+vercel.json
