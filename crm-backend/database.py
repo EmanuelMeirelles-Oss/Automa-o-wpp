@@ -20,6 +20,8 @@ class Lead(Base):
     telefone = Column(String, unique=True, index=True)
     cidade = Column(String)
     tem_site = Column(Boolean, default=False)
+    instagram = Column(String, nullable=True)
+    avaliacao = Column(String, nullable=True)
     
     # Status pode ser: PENDENTE, ENVIANDO, SUCESSO, ERRO
     status_disparo = Column(String, default="PENDENTE")

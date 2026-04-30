@@ -11,13 +11,32 @@ import server
 
 # Funcao pra gerar as copys do lead
 def gerar_mensagens_para_lead(lead):
-    msg1 = f"Fala pessoal da {lead.nome}, tudo bom? Sou o Emanuel, desenvolvedor aqui de {lead.cidade} 👋"
-    
+    msg1 = (
+        f"Opa, pessoal da {lead.nome}! Tudo bem? "
+        f"Aqui é o Emanuel, desenvolvedor de sites aqui de {lead.cidade} mesmo 👋\n\n"
+        f"Tava dando uma olhada no trabalho de vocês hoje — ficou uma pergunta na minha cabeça que queria compartilhar com vocês."
+    )
+
     if lead.tem_site:
-        msg2 = "Acompanho o trampo de voces e achei top! Vi o site atual, mas acredito que daria pra atrair muito mais clientes se passasse aquele nivel premium.\n\nAcesse aqui meu portfolio focado na area para voces sentirem o que quero dizer: https://portfolioemanueldev.vercel.app\n\nConseguimos trocar 5 minutinhos de ideia sem compromisso?"
+        msg2 = (
+            f"O trabalho de vocês é visivelmente bom — mas o site atual não tá comunicando isso da forma que merecia.\n\n"
+            f"Tenho uma ideia específica pra {lead.nome} que já apliquei em outros estabelecimentos aqui da região. "
+            f"Dá uma olhada rápida no que eu faço: https://portfolioemanueldev.vercel.app"
+        )
     else:
-        msg2 = "Acompanho o trampo de voces e achei top! Notei que ainda estao sem um site oficial pra profissionalizar os agendamentos.\n\nAcesse aqui o meu portfolio para ver na pratica o que quero dizer (vai carregar a previa do meu site direto no zap): https://portfolioemanueldev.vercel.app\n\nConseguimos trocar 5 minutinhos de ideia sem compromisso?"
-    return msg1, msg2
+        msg2 = (
+            f"Percebi que vocês ainda não têm um site — e isso tá custando cliente todo dia, "
+            f"porque quem procura barbearia no Google simplesmente não acha vocês.\n\n"
+            f"Tenho uma solução específica pra {lead.nome} que já apliquei aqui na região. "
+            f"Dá uma olhada rápida: https://portfolioemanueldev.vercel.app"
+        )
+
+    msg3 = (
+        f"Teriam uns 5 minutinhos essa semana pra eu mostrar como ficaria pra vocês especificamente? "
+        f"Sem compromisso — se não fizer sentido, tudo bem também 👊"
+    )
+
+    return msg1, msg2, msg3
 
 # O Loop mestre rodara isolado numa thead conectada a sua Interface
 def run_bot_worker():
@@ -25,16 +44,21 @@ def run_bot_worker():
     
     # 1. Abre o WebDriver do Chrome (mantemos o diretorio cache para nao perder QRCode)
     chrome_options = Options()
-    chrome_options.add_argument("user-data-dir=../.tmp/chrome_profile_pro")
     
-    # IMPORTANTE: Desativando "Headless" por agora para fins de Scan de QR CODE, em producao ou 100% cloud, pode se usar headless. Como a diretiva eh "uso na propria maquina enquanto ve animes", manter a aba aberta ou invisivel eh uma escolha. Deixaremos em janela por precaucao do QR.
+    import os
+    profile_path = os.path.abspath(os.path.join(os.getcwd(), "..", ".tmp", "wpp_profile"))
+    if not os.path.exists(profile_path):
+        os.makedirs(profile_path)
+        
+    chrome_options.add_argument(f"user-data-dir={profile_path}")
+    
+    # IMPORTANTE: Desativando "Headless" por agora para fins de Scan de QR CODE.
     chrome_options.add_experimental_option("detach", True) 
 
-    service = Service(ChromeDriverManager().install())
     driver = None
     
     try:
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver = webdriver.Chrome(options=chrome_options)
         driver.get("https://web.whatsapp.com/")
         server.BOT_STATUS["logs"].append("Aguardando Whatsapp Web sincronizar (20 seg)...")
         time.sleep(20)
@@ -59,7 +83,7 @@ def run_bot_worker():
             if len(telefone) in [10, 11] and not telefone.startswith("55"):
                 telefone = "55" + telefone
 
-            msg1, msg2 = gerar_mensagens_para_lead(lead)
+            msg1, msg2, msg3 = gerar_mensagens_para_lead(lead)
             msg1_encoded = urllib.parse.quote(msg1)
             
             server.BOT_STATUS["logs"].append(f"Atacando -> {lead.nome} ({telefone})")
@@ -68,9 +92,24 @@ def run_bot_worker():
                 driver.get(f"https://web.whatsapp.com/send?phone={telefone}&text={msg1_encoded}")
                 
                 # Aguarda responsividade de internet e loading Web WhatsApp
-                wait_ticks = 15
+                wait_ticks = 20
+                send_button_found = False
+                invalid_number = False
+                
                 for _ in range(wait_ticks):
                     if not server.BOT_STATUS["is_running"]: break
+                    
+                    # Verifica se o botao de enviar ja carregou (sinal verde)
+                    if driver.find_elements(By.XPATH, '//span[@data-icon="send"]'):
+                        send_button_found = True
+                        break
+                        
+                    # Verifica se deu erro de numero invalido
+                    page_text = driver.page_source.lower()
+                    if "url é inválido" in page_text or "url is invalid" in page_text or "não existe" in page_text:
+                        invalid_number = True
+                        break
+                        
                     time.sleep(1)
                 
                 if not server.BOT_STATUS["is_running"]: 
@@ -78,6 +117,18 @@ def run_bot_worker():
                     lead.status_disparo = "PENDENTE"
                     db.commit()
                     break
+
+                if invalid_number:
+                    lead.status_disparo = "ERRO"
+                    db.commit()
+                    server.BOT_STATUS["logs"].append(f"⚠️ Alerta: O número de {lead.nome} NÃO tem WhatsApp! Pulando...")
+                    continue
+                    
+                if not send_button_found:
+                    lead.status_disparo = "ERRO"
+                    db.commit()
+                    server.BOT_STATUS["logs"].append(f"⚠️ Alerta: Internet lenta ou falha ao carregar o chat de {lead.nome}. Pulando...")
+                    continue
 
                 # Dispara M1
                 botoes = driver.find_elements(By.XPATH, '//span[@data-icon="send"]')
@@ -96,6 +147,20 @@ def run_bot_worker():
                 
                 Action.perform()
                 time.sleep(3) # Carga pro Whatsapp construir Thumbnail Vercel
+                webdriver.ActionChains(driver).send_keys(Keys.ENTER).perform()
+                
+                time.sleep(4)
+                
+                # Inputa e Dispara M3
+                linhas_msg3 = msg3.split('\n')
+                Action3 = webdriver.ActionChains(driver)
+                for i, linha in enumerate(linhas_msg3):
+                    Action3.send_keys(linha)
+                    if i < len(linhas_msg3) - 1:
+                        Action3.key_down(Keys.SHIFT).send_keys(Keys.ENTER).key_up(Keys.SHIFT)
+                        
+                Action3.perform()
+                time.sleep(1)
                 webdriver.ActionChains(driver).send_keys(Keys.ENTER).perform()
 
                 lead.status_disparo = "SUCESSO"

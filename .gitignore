@@ -12,3 +12,5 @@ app_futebol/
 *.zip
 logs/
 vercel.json
+
+.vercel
