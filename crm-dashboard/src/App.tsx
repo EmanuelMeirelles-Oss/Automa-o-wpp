@@ -21,7 +21,7 @@ function App() {
 
   const fetchLeads = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/leads')
+      const res = await fetch('http://localhost:8000/api/leads')
       const data = await res.json()
       setLeads(data)
     } catch (e) {
@@ -31,7 +31,7 @@ function App() {
 
   const fetchStatus = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/bot/status')
+      const res = await fetch('http://localhost:8000/api/bot/status')
       const data = await res.json()
       setBotStatus(data)
     } catch (e) {}
@@ -53,7 +53,7 @@ function App() {
     setAddError(null)
     try {
       const payload = { ...newLead, telefone: newLead.telefone.replace(/\D/g, '') }
-      const res = await fetch('http://127.0.0.1:8000/api/leads', {
+      const res = await fetch('http://localhost:8000/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -76,7 +76,7 @@ function App() {
 
   const handleDelete = async (id: number) => {
     try {
-      await fetch(`http://127.0.0.1:8000/api/leads/${id}`, { method: 'DELETE' })
+      await fetch(`http://localhost:8000/api/leads/${id}`, { method: 'DELETE' })
       fetchLeads()
     } catch {
       alert("Erro ao conectar com o servidor.")
@@ -86,7 +86,7 @@ function App() {
   const handleClearQueue = async () => {
     if (window.confirm("Tem certeza que deseja apagar TODA a fila de leads?")) {
         try {
-          await fetch(`http://127.0.0.1:8000/api/leads/clear`, { method: 'DELETE' })
+          await fetch(`http://localhost:8000/api/leads/clear`, { method: 'DELETE' })
           fetchLeads()
         } catch {
           alert("Erro ao conectar com o servidor.")
@@ -96,7 +96,7 @@ function App() {
 
   const handleResetStatus = async (id: number) => {
     try {
-      await fetch(`http://127.0.0.1:8000/api/leads/${id}/reset`, { method: 'PUT' })
+      await fetch(`http://localhost:8000/api/leads/${id}/reset`, { method: 'PUT' })
       fetchLeads()
     } catch {
       alert("Erro ao conectar com o servidor.")
@@ -110,7 +110,7 @@ function App() {
         return;
     }
     try {
-      await fetch('http://127.0.0.1:8000/api/bot/extract', {
+      await fetch('http://localhost:8000/api/bot/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ termo: extractQuery })
@@ -125,7 +125,7 @@ function App() {
 
   const handleStopExtract = async () => {
     try {
-      await fetch('http://127.0.0.1:8000/api/bot/stop_extract', { method: 'POST' })
+      await fetch('http://localhost:8000/api/bot/stop_extract', { method: 'POST' })
       fetchStatus()
     } catch {
       alert("Erro ao conectar com o servidor.")
@@ -134,7 +134,7 @@ function App() {
 
   const handleStart = async () => {
     try {
-      await fetch('http://127.0.0.1:8000/api/bot/start', { method: 'POST' })
+      await fetch('http://localhost:8000/api/bot/start', { method: 'POST' })
       fetchStatus()
     } catch {
       alert("Erro ao conectar com o servidor. O backend Python está rodando?")
@@ -143,7 +143,7 @@ function App() {
 
   const handleStop = async () => {
     try {
-      await fetch('http://127.0.0.1:8000/api/bot/stop', { method: 'POST' })
+      await fetch('http://localhost:8000/api/bot/stop', { method: 'POST' })
       fetchStatus()
     } catch {
       alert("Erro ao conectar com o servidor.")
